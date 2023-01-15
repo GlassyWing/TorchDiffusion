@@ -14,7 +14,7 @@ public:
 		int num_workers = 2,
 		int save_and_sample_every = 100,
 		int accumulation_steps = 2);
-	std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> prepare_data(torch::Tensor x_real);
+	std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> prepare_data(const torch::Tensor& x_real);
 	template <typename DataLoader>
 	void train(DataLoader& dataloader);
 	void train(std::string dataset_path);

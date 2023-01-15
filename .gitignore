@@ -1,6 +1,13 @@
 #visual studio
 build
 
+#idea
+.idea
+
+#cmake
+*-debug-*
+*-release-*
+
 # Prerequisites
 *.d
 

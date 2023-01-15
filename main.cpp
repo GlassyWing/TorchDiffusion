@@ -138,7 +138,7 @@ auto main(int argc, char** argv) -> int {
 	
 	/*------------define train/test params--------*/
 	std::string mode("train");
-	std::string exp_name("");
+	std::string exp_name;
 	std::string dataset_path(R"(D:\datasets\thirds\anime_face)");
 	std::string pretrained_weights;
 	std::string weight_path(R"(D:\projects\personal\ddpm\demo.pth)");
@@ -168,7 +168,7 @@ auto main(int argc, char** argv) -> int {
 	auto diffusion = DDPM(model.ptr(), img_size, T, emb_dim);
 
 	if (mode == "test") {
-		std::cout << "Runing at inference mode..." << std::endl;
+		std::cout << "Running at inference mode..." << std::endl;
 		try {
 			// load pytorch trained model.
 			if (endswith(weight_path, "pth")) {
@@ -194,8 +194,8 @@ auto main(int argc, char** argv) -> int {
 	}
 	else {
         try {
-            std::cout << "Runing at training mode..." << std::endl;
-            std::cout << "Experiemnts name: " << exp_name << std::endl;
+            std::cout << "Running at training mode..." << std::endl;
+            std::cout << "Experiments name: " << (exp_name.empty() ? "(Empty)" : exp_name) << std::endl;
             diffusion->apply(weights_norm_init());
 
             if (!pretrained_weights.empty()) {
@@ -205,7 +205,7 @@ auto main(int argc, char** argv) -> int {
                 else {
                     torch::load(diffusion, pretrained_weights);
                 }
-                std::cout << "Load pretrained weight successful!" << std::endl;
+                std::cout << "Load pretrained weight " << pretrained_weights << " successful!" << std::endl;
             }
             diffusion->to(device);
             auto trainer = Trainer(diffusion, img_size,

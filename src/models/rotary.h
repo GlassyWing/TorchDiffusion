@@ -16,7 +16,7 @@ torch::Tensor positional_encoding_1d(int d_model, int length, float base = 10000
  * @param tensors tensor's list, which should has same shape of (batch, seq_len, dim)
  * @return tensors with position infos, shame shape as input.
  */
-std::vector<torch::Tensor> apply_rotary_position_embeddings(torch::Tensor sinusoidal,
+std::vector<torch::Tensor> apply_rotary_position_embeddings(const torch::Tensor& sinusoidal,
                                                             std::vector<torch::Tensor> tensors);
 
 /**
@@ -25,7 +25,7 @@ std::vector<torch::Tensor> apply_rotary_position_embeddings(torch::Tensor sinuso
  * @param tensors tensor's list, which should has same shape of (batch, dim, H, W)
  * @return tensors with position infos, shame shape as input.
  */
-std::vector<torch::Tensor> apply_rotary_position2d_embeddings(torch::Tensor sinusoidal,
+std::vector<torch::Tensor> apply_rotary_position2d_embeddings(const torch::Tensor& sinusoidal,
                                                               std::vector<torch::Tensor> tensors);
 
 /**
@@ -40,11 +40,11 @@ public:
      * @param x
      * @return
      */
-    torch::Tensor forward(torch::Tensor x);
+    torch::Tensor forward(const torch::Tensor& x);
 private:
     int dim;
     float base;
-    int h_size_cached;
-    int w_size_cached;
+    int h_size_cached{};
+    int w_size_cached{};
     std::shared_ptr<torch::Tensor> pos_cached{nullptr};
 };

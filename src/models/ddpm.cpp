@@ -1,8 +1,9 @@
 #include "ddpm.h"
 #include <opencv2/opencv.hpp>
+#include <utility>
 using namespace torch::indexing;
 
-DDPMImpl::DDPMImpl(std::shared_ptr<Module> model, std::tuple<int, int>& img_size, int T, int embedding_size) {
+DDPMImpl::DDPMImpl(const std::shared_ptr<Module>& model, std::tuple<int, int>& img_size, int T, int embedding_size) {
 	this->model = model;
 	this->img_size = img_size;
 	this->T = T;
@@ -23,8 +24,8 @@ std::shared_ptr<torch::nn::Module> DDPMImpl::get_model() {
 }
 
 torch::Tensor DDPMImpl::forward(torch::Tensor x, torch::Tensor t_in) {
-	auto t_e = t.index({ t_in });
-	auto x_r = model->as<Unet>()->forward(x, t_e);
+	auto t_e = t.index({ std::move(t_in) });
+	auto x_r = model->as<Unet>()->forward(std::move(x), t_e);
 	return x_r;
 }
 torch::Tensor DDPMImpl::sample(std::string path, torch::Device device) {

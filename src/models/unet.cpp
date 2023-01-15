@@ -90,7 +90,7 @@ ResidualBlockImpl::ResidualBlockImpl(int in_c, int out_c, int emb_dim, int n_gro
 	register_module("post_norm", post_norm);
 }
 
-torch::Tensor ResidualBlockImpl::forward(torch::Tensor x, torch::Tensor t) {
+torch::Tensor ResidualBlockImpl::forward(torch::Tensor x, const torch::Tensor& t) {
 	torch::Tensor xi;
 	if (x.size(1) == out_c) {
 		xi = x.clone();
@@ -145,7 +145,7 @@ void UnetImpl::init(int img_c,
 		// sevaral residual blocks
 		for (size_t j = 0; j < n_block; j++)
 		{
-			chs.push_back(std::make_tuple(cur_c, scale * emb_dim));
+			chs.emplace_back(cur_c, scale * emb_dim);
 			auto block = ResidualBlock(cur_c, scale * emb_dim, emb_dim, n_groups);
 			cur_c = scale * emb_dim;
 			enc_blocks.insert((std::stringstream() << "enc_block_" << i * n_block + j).str(), block.ptr());
@@ -232,7 +232,7 @@ torch::Tensor UnetImpl::forward(torch::Tensor x, torch::Tensor t) {
 	std::vector<torch::Tensor> inners;
 
 	inners.push_back(x);
-	for (auto item : encoder_blocks->items()) {
+	for (const auto& item : encoder_blocks->items()) {
 		auto name = item.first;
 		auto module = item.second;
 		// resudial block
@@ -282,7 +282,7 @@ torch::Tensor UnetImpl::forward(torch::Tensor x, torch::Tensor t) {
 QKVAttentionImpl::QKVAttentionImpl(int n_heads):n_heads(n_heads) {
 }
 
-torch::Tensor QKVAttentionImpl::forward(torch::Tensor qkv) {
+torch::Tensor QKVAttentionImpl::forward(const torch::Tensor& qkv) const {
     int bs = qkv.size(0), width = qkv.size(1), length = qkv.size(2);
     assert(width % (3 * n_heads) == 0);
     auto ch = width / (3 * n_heads);

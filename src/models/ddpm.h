@@ -20,7 +20,7 @@ public:
 	torch::Tensor t;
 	int embedding_size;
 
-	DDPMImpl(std::shared_ptr<Module> model, std::tuple<int, int>& img_size, int T = 1000, int embedding_size = 2);
+	DDPMImpl(const std::shared_ptr<Module>& model, std::tuple<int, int>& img_size, int T = 1000, int embedding_size = 2);
 	torch::Tensor forward(torch::Tensor x, torch::Tensor t_in);
 	torch::Tensor sample(std::shared_ptr<std::string> path = nullptr, int n = 4, std::shared_ptr<torch::Tensor> z_samples = nullptr,
 		int t0 = 0, torch::Device device = torch::Device(torch::kCUDA, 0));

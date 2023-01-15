@@ -4,6 +4,7 @@
 #include "utils/path.h"
 #include "datasets/folder.h"
 #include <random>
+#include <utility>
 
 Trainer::Trainer(DDPM& ddpm,
 	std::tuple<int, int> img_size,
@@ -49,23 +50,13 @@ Trainer::Trainer(DDPM& ddpm,
 	}
 }
 
-std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> Trainer::prepare_data(torch::Tensor x_real) {
+std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> Trainer::prepare_data(const torch::Tensor& x_real) {
 	auto batch_images = x_real.to(device);
 	auto batch_size = batch_images.size(0);
 
 	std::vector<int> steps;
-	// sample batch size steps from 0...T
-	/*std::random_device rd;
-	std::default_random_engine generator(rd());
-	std::uniform_int_distribution<int> distribution(0, ddpm->T - 1);
 
-	
-	for (int i = 0; i < batch_size; i++)
-	{
-		steps.push_back(distribution(generator));
-	}*/
-
-	std::random_shuffle(this->steps.begin(), this->steps.end());
+	std::shuffle(this->steps.begin(), this->steps.end(), std::mt19937(std::random_device()()));
 	for (int i = 0; i < batch_size; i++)
 	{
 		steps.push_back(this->steps.at(i));
@@ -82,7 +73,7 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> Trainer::prepare_data(to
 }
 
 void Trainer::train(std::string dataset_path) {
-	auto dataset = ImageFolderDataset(dataset_path, img_size)
+	auto dataset = ImageFolderDataset(std::move(dataset_path), img_size)
 		// RandomFliplr
 		.map(torch::data::transforms::Lambda<torch::data::TensorExample>([](torch::data::TensorExample input) {
 				if ((torch::rand(1).item<double>() < 0.5)) {
@@ -143,7 +134,7 @@ void Trainer::train(std::string dataset_path) {
 			if ((step != 0) && (step % save_and_sample_every == 0)) {
 				auto exp_img_path = (std::stringstream() << sample_path << "/ddpm_ckpt_" << epoch << "_" << step << "_ema.png").str();
 				ddpm_shadow->sample(exp_img_path, 4);
-				torch::save(ddpm_shadow, (std::stringstream() << checkpoint_path << "/ddpm_ckpt_" << epoch << "_" << step << ".pth").str());
+				torch::save(ddpm_shadow, (std::stringstream() << checkpoint_path << "/ddpm_ckpt_" << epoch << "_" << step << ".pt").str());
 			}
 		}
 	}

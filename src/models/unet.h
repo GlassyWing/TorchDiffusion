@@ -29,7 +29,7 @@ torch::nn::Sequential Downsample(int dim, int dim_out = -1);
 class ResidualBlockImpl : public torch::nn::Module {
 public:
 	ResidualBlockImpl(int in_c, int out_c, int emb_dim, int n_groups = 32);
-	torch::Tensor forward(torch::Tensor x, torch::Tensor t);
+	torch::Tensor forward(torch::Tensor x, const torch::Tensor& t);
 private:
 	torch::nn::Conv2d conv{ nullptr };
 	torch::nn::Linear dense{ nullptr };
@@ -75,7 +75,7 @@ public:
      * @param qkv : an [N x (3 * H * C) x T] tensor of Qs, Ks, and Vs
      * @return an [N x (H * c) x T] tensor after attention.
      */
-    torch::Tensor forward(torch::Tensor qkv);
+    torch::Tensor forward(const torch::Tensor& qkv) const;
 private:
     int n_heads;
 };
