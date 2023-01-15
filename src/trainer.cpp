@@ -83,6 +83,13 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> Trainer::prepare_data(to
 
 void Trainer::train(std::string dataset_path) {
 	auto dataset = ImageFolderDataset(dataset_path, img_size)
+		// RandomFliplr
+		.map(torch::data::transforms::Lambda<torch::data::TensorExample>([](torch::data::TensorExample input) {
+				if ((torch::rand(1).item<double>() < 0.5)) {
+					input.data = torch::flip(input.data, {-1});
+				}
+				return input;
+			}))
 		.map(torch::data::transforms::Stack<torch::data::TensorExample>());
 
 	const size_t dataset_size = dataset.size().value();

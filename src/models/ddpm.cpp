@@ -1,5 +1,6 @@
 #include "ddpm.h"
 #include <opencv2/opencv.hpp>
+using namespace torch::indexing;
 
 DDPMImpl::DDPMImpl(std::shared_ptr<Module> model, std::tuple<int, int>& img_size, int T, int embedding_size) {
 	this->model = model;

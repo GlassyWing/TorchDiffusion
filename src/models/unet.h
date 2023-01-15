@@ -1,5 +1,9 @@
 #include <torch/torch.h>
 
+#include <utility>
+
+#include "rotary.h"
+
 // A custom group norm implementation.
 class GroupNormCustomImpl : public torch::nn::Module {
 public:
@@ -58,3 +62,46 @@ private:
 
 	void init(int img_c, std::tuple<int, int>& img_size, std::vector<int>& scales, int emb_dim, int min_pixel = 4, int n_block = 2, int n_groups = 32);
 }; TORCH_MODULE(Unet);
+
+/**
+ * A module which performs QKV attention and splits in a different order.
+ */
+class QKVAttentionImpl: public torch::nn::Module {
+public:
+    QKVAttentionImpl(int n_heads);
+
+    /**
+     * Apply QKV attention
+     * @param qkv : an [N x (3 * H * C) x T] tensor of Qs, Ks, and Vs
+     * @return an [N x (H * c) x T] tensor after attention.
+     */
+    torch::Tensor forward(torch::Tensor qkv);
+private:
+    int n_heads;
+};
+
+TORCH_MODULE(QKVAttention);
+
+
+class AttentionBlockImpl: public torch::nn::Module {
+public:
+    AttentionBlockImpl(int channels,
+                       int num_heads = 1,
+                       int num_head_channels = -1,
+                       bool use_checkpoint = false,
+                       bool use_new_attention_order = false);
+    torch::Tensor forward(torch::Tensor x);
+    torch::Tensor _forward(torch::Tensor x);
+    void zero_init_weights();
+
+    int channels;
+    int num_heads;
+    GroupNormCustom norm{nullptr};
+    bool use_checkpoint;
+    torch::nn::Conv1d qkv{nullptr};
+    QKVAttention attention{nullptr};
+    torch::nn::Conv1d proj_out{nullptr};
+
+    Rotary2D rot_pos;
+
+}; TORCH_MODULE(AttentionBlock);

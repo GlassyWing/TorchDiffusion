@@ -139,9 +139,9 @@ auto main(int argc, char** argv) -> int {
 	/*------------define train/test params--------*/
 	std::string mode("train");
 	std::string exp_name("");
-	std::string dataset_path("D:\\datasets\\thirds\\anime_face");
+	std::string dataset_path(R"(D:\datasets\thirds\anime_face)");
 	std::string pretrained_weights;
-	std::string weight_path("D:\\projects\\personal\\ddpm\\demo.pth");
+	std::string weight_path(R"(D:\projects\personal\ddpm\demo.pth)");
 	int batch_size = 32;
 	double learning_rate = 2e-4;
 	int num_epochs = 1000;
@@ -193,31 +193,36 @@ auto main(int argc, char** argv) -> int {
 		}
 	}
 	else {
-		std::cout << "Runing at training mode..." << std::endl;
-		std::cout << "Experiemnts name: " << exp_name << std::endl;
-		diffusion->apply(weights_norm_init());
+        try {
+            std::cout << "Runing at training mode..." << std::endl;
+            std::cout << "Experiemnts name: " << exp_name << std::endl;
+            diffusion->apply(weights_norm_init());
 
-		if (!pretrained_weights.empty()) {
-			if (endswith(pretrained_weights, "pth")) {
-				load_state_dict(diffusion.ptr(), pretrained_weights);
-			}
-			else {
-				torch::load(diffusion, pretrained_weights);
-			}
-			std::cout << "Load pretrained weight successful!" << std::endl;
-		}
-		diffusion->to(device);
-		auto trainer = Trainer(diffusion, img_size,
-			/*exp_name=*/exp_name,
-			/*batch_size=*/batch_size,
-			/*train_lr=*/learning_rate,
-			/*train_num_epochs=*/num_epochs,
-			/*ema_decay=*/ema_decay,
-			/*num_workers=*/num_workers,
-			/*save_and_sample_every=*/save_and_sample_every,
-			/*accumulation_steps=*/accumulation_steps
-		);
-		trainer.train(dataset_path);
+            if (!pretrained_weights.empty()) {
+                if (endswith(pretrained_weights, "pth")) {
+                    load_state_dict(diffusion.ptr(), pretrained_weights);
+                }
+                else {
+                    torch::load(diffusion, pretrained_weights);
+                }
+                std::cout << "Load pretrained weight successful!" << std::endl;
+            }
+            diffusion->to(device);
+            auto trainer = Trainer(diffusion, img_size,
+                    /*exp_name=*/exp_name,
+                    /*train_batch_size=*/batch_size,
+                    /*train_lr=*/learning_rate,
+                    /*train_num_epochs=*/num_epochs,
+                    /*ema_decay=*/ema_decay,
+                    /*num_workers=*/num_workers,
+                    /*save_and_sample_every=*/save_and_sample_every,
+                    /*accumulation_steps=*/accumulation_steps
+            );
+            trainer.train(dataset_path);
+        } catch (std::exception &e) {
+            std::cout << e.what() << std::endl;
+        }
+
 	}
 	
 	return 0;

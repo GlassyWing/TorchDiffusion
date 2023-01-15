@@ -3,26 +3,7 @@
 
 #include "unet.h"
 
-using namespace torch::indexing;
 
-// @param d_model:  dimension of the model
-// @param length:	length of positions
-// @ret: length * d_model position matrix
-inline torch::Tensor positional_encoding_1d(int d_model, int length) {
-	if ((d_model % 2) != 0) {
-		throw (std::stringstream() << "Cannot use sin/cos positional encoding with odd dim (got dim=" << d_model << ")").str();
-	} 
-
-	auto pe = torch::zeros({length, d_model});
-	auto position = torch::arange(0, length, torch::TensorOptions().dtype(torch::kFloat)).unsqueeze(1);
-	auto div_term = torch::exp(torch::arange(0, d_model, 2, torch::TensorOptions().dtype(torch::kFloat)) * -(std::log(10000.0) / d_model));
-	
-	pe.index_put_({ Slice(), Slice(0, None, 2)}, torch::sin(position * div_term));
-	pe.index_put_({ Slice(), Slice(1, None, 2)}, torch::cos(position * div_term));
-
-	return pe;
-}
-	
 
 class DDPMImpl : public torch::nn::Module {
 private:
