@@ -73,35 +73,35 @@ void test_unet_train(Unet& model,
 }
 
 // this function use to test whether model's output and grad valid.
-void test_out_grad() {
-
-	torch::manual_seed(0);
-	
-	auto inp = torch::randn({ 2, 3, 8, 8 }).set_requires_grad(true);
-	auto te = torch::zeros({ 2 }, torch::TensorOptions().dtype(torch::kLong));
-
-	auto unet = Unet(3, std::make_tuple<>(8, 8), std::vector<int>({ 1, 1 }), 64, 1);
-	auto ddpm = DDPM(unet.ptr(), std::make_tuple<>(8, 8), 10, 64);
-	auto model = ddpm;
-
-	try {
-		auto out = model->forward(inp, te);
-		auto loss = (torch::ones_like(out) - out).pow(2).mean();
-		loss.backward();
-
-		std::cout << "-------------------------------" << std::endl;
-		std::cout << inp.index({ 0, 0 }) << std::endl;
-		std::cout << out.sizes() << " " << out.index({ 0, 0 }) << std::endl;
-		std::cout << inp.grad().index({ 0, 0 }) << std::endl;
-
-		auto ddpm_out = model->sample(torch::Device(torch::kCPU));
-		std::cout << ddpm_out.index({ 0, 0 }) << std::endl;
-	}
-	catch (const std::exception& e) {
-		std::cout << e.what();
-		
-	}
-}
+//void test_out_grad() {
+//
+//	torch::manual_seed(0);
+//
+//	auto inp = torch::randn({ 2, 3, 8, 8 }).set_requires_grad(true);
+//	auto te = torch::zeros({ 2 }, torch::TensorOptions().dtype(torch::kLong));
+//
+//	auto unet = Unet(3, std::make_tuple<>(8, 8), std::vector<int>({ 1, 1 }), 64, 1);
+//	auto sampler = DDPM(unet.ptr(), std::make_tuple<>(8, 8), 10, 64);
+//	auto model = sampler;
+//
+//	try {
+//		auto out = model->forward(inp, te);
+//		auto loss = (torch::ones_like(out) - out).pow(2).mean();
+//		loss.backward();
+//
+//		std::cout << "-------------------------------" << std::endl;
+//		std::cout << inp.index({ 0, 0 }) << std::endl;
+//		std::cout << out.sizes() << " " << out.index({ 0, 0 }) << std::endl;
+//		std::cout << inp.grad().index({ 0, 0 }) << std::endl;
+//
+//		auto ddpm_out = model->sample(torch::Device(torch::kCPU));
+//		std::cout << ddpm_out.index({ 0, 0 }) << std::endl;
+//	}
+//	catch (const std::exception& e) {
+//		std::cout << e.what();
+//
+//	}
+//}
 
 // test dataset.get image
 void test_dataset_load(std::string dataset_path, std::tuple<int, int> img_size) {
@@ -124,15 +124,37 @@ void test_dataset_load(std::string dataset_path, std::tuple<int, int> img_size) 
 	cv::imwrite("./test_2.png", mat);
 }
 
+class A {
+public:
+    virtual void say() = 0;
+};
+
+
+class B: public A {
+public:
+    void say();
+};
+
+void B::say() {
+    std::cout << "B" << std::endl;
+}
+
+void test_object_slicing() {
+    std::shared_ptr<A> a = std::make_shared<B>(B());
+    a ->say();
+}
+
 auto main(int argc, char** argv) -> int {
 	
 	at::globalContext().setBenchmarkCuDNN(true);
 
 	/*------------define model scale.------------*/
-	std::tuple<int, int> img_size({ 128, 128 });	// image size (height, width)
+    int img_width = 128;
+    int img_height = 128;
+	std::tuple<int, int> img_size({ img_height, img_width });	// image size (height, width)
 	std::vector<int> scales = { 1 ,1 , 2, 2, 4, 4 };// scale size for each block, base on emb_dim
 	int emb_dim = 64;								// base channels dim
-	int T = 1000;									// ddpm steps
+	int T = 1000;									// sampler steps
 	auto device = torch::Device(torch::kCUDA, 0);	// indicate training/testing on which device
 	/*-------------------------------------------*/
 	
@@ -165,7 +187,12 @@ auto main(int argc, char** argv) -> int {
 	
 
 	auto model = Unet(3, img_size, scales, emb_dim);
-	auto diffusion = DDPM(model.ptr(), img_size, T, emb_dim);
+    auto sampler_options = SamplerOptions()
+            .img_width(img_width)
+            .img_height(img_height)
+            .T(T)
+            .embedding_size(emb_dim);
+	auto diffusion = DDPM(model.ptr(),sampler_options);
 
 	if (mode == "test") {
 		std::cout << "Running at inference mode..." << std::endl;
@@ -208,7 +235,8 @@ auto main(int argc, char** argv) -> int {
                 std::cout << "Load pretrained weight " << pretrained_weights << " successful!" << std::endl;
             }
             diffusion->to(device);
-            auto trainer = Trainer(diffusion, img_size,
+            auto trainer = Trainer(std::dynamic_pointer_cast<Sampler>(diffusion.ptr()),
+                    /*img_size=*/img_size,
                     /*exp_name=*/exp_name,
                     /*train_batch_size=*/batch_size,
                     /*train_lr=*/learning_rate,

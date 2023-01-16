@@ -6,8 +6,9 @@ using namespace torch::indexing;
 
 torch::Tensor positional_encoding_1d(int d_model, int length, float base) {
 
-    assert(d_model % 2 == 0 && (std::stringstream() << "Cannot use sin/cos positional encoding with odd dim (got dim=" << d_model
-                                                    << ")").str().c_str());
+    assert(d_model % 2 == 0 &&
+           (std::stringstream() << "Cannot use sin/cos positional encoding with odd dim (got dim=" << d_model
+                                << ")").str().c_str());
 
     auto pe = torch::zeros({length, d_model});
     auto position = torch::arange(0, length, torch::TensorOptions().dtype(torch::kFloat)).unsqueeze(1);
@@ -20,7 +21,7 @@ torch::Tensor positional_encoding_1d(int d_model, int length, float base) {
     return pe;
 }
 
-std::vector<torch::Tensor> apply_rotary_position_embeddings(const torch::Tensor& sinusoidal,
+std::vector<torch::Tensor> apply_rotary_position_embeddings(const torch::Tensor &sinusoidal,
                                                             std::vector<torch::Tensor> tensors) {
 
     assert(tensors.size() > 0 && "at least one input tensor");
@@ -43,23 +44,23 @@ std::vector<torch::Tensor> apply_rotary_position_embeddings(const torch::Tensor&
     return outputs;
 }
 
-std::vector<torch::Tensor> apply_rotary_position2d_embeddings(const torch::Tensor& sinusoidal,
+std::vector<torch::Tensor> apply_rotary_position2d_embeddings(const torch::Tensor &sinusoidal,
                                                               std::vector<torch::Tensor> tensors) {
     auto t0 = tensors.at(0);
     int B = t0.size(0), D = t0.size(1), H = t0.size(2), W = t0.size(3);
     std::vector<torch::Tensor> reshaped_tensors;
-    for (const auto& t: tensors) {
+    for (const auto &t: tensors) {
         reshaped_tensors.push_back(t.permute({0, 2, 3, 1}).reshape({B, -1, D}));
     }
     reshaped_tensors = apply_rotary_position_embeddings(sinusoidal, reshaped_tensors);
     std::vector<torch::Tensor> reverse_tensors;
-    for (const auto& t: reshaped_tensors) {
+    for (const auto &t: reshaped_tensors) {
         reverse_tensors.push_back(t.reshape({B, H, W, D}).permute({0, 3, 1, 2}).contiguous());
     }
     return reverse_tensors;
 }
 
-torch::Tensor Rotary2D::forward(const torch::Tensor& x) {
+torch::Tensor Rotary2D::forward(const torch::Tensor &x) {
     int H = x.size(2), W = x.size(3);
     assert(H % 2 == 0 && "Apply rotary 2d position embedding requires `H` to be even number.");
     assert(W % 2 == 0 && "Apply rotary 2d position embedding requires `W` to be even number.");
