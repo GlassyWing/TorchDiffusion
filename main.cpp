@@ -7,6 +7,7 @@
 #include "src/utils/model_serialize.h"
 #include "src/utils/hand.h"
 #include "CLI11.hpp"
+#include "src/models/ddim.h"
 
 using namespace cv;
 
@@ -72,77 +73,6 @@ void test_unet_train(Unet& model,
 	}
 }
 
-// this function use to test whether model's output and grad valid.
-//void test_out_grad() {
-//
-//	torch::manual_seed(0);
-//
-//	auto inp = torch::randn({ 2, 3, 8, 8 }).set_requires_grad(true);
-//	auto te = torch::zeros({ 2 }, torch::TensorOptions().dtype(torch::kLong));
-//
-//	auto unet = Unet(3, std::make_tuple<>(8, 8), std::vector<int>({ 1, 1 }), 64, 1);
-//	auto sampler = DDPM(unet.ptr(), std::make_tuple<>(8, 8), 10, 64);
-//	auto model = sampler;
-//
-//	try {
-//		auto out = model->forward(inp, te);
-//		auto loss = (torch::ones_like(out) - out).pow(2).mean();
-//		loss.backward();
-//
-//		std::cout << "-------------------------------" << std::endl;
-//		std::cout << inp.index({ 0, 0 }) << std::endl;
-//		std::cout << out.sizes() << " " << out.index({ 0, 0 }) << std::endl;
-//		std::cout << inp.grad().index({ 0, 0 }) << std::endl;
-//
-//		auto ddpm_out = model->sample(torch::Device(torch::kCPU));
-//		std::cout << ddpm_out.index({ 0, 0 }) << std::endl;
-//	}
-//	catch (const std::exception& e) {
-//		std::cout << e.what();
-//
-//	}
-//}
-
-// test dataset.get image
-void test_dataset_load(std::string dataset_path, std::tuple<int, int> img_size) {
-	auto dataset = ImageFolderDataset(dataset_path, img_size);
-
-	auto data = dataset.get(0).data;
-	std::cout << &data << " " << data.data_ptr() << std::endl;
-	auto data2 = dataset.get(1).data;
-	std::cout << &data2 << " " << data2.data_ptr() << std::endl;
-	std::cout << (data == data2).all() << std::endl;
-	std::cout << (data.data_ptr() == data2.data_ptr()) << std::endl;
-
-	auto t = torch::stack({data, data2}, 0);
-
-	t = t.index({0}); // (h, w, 3)
-	t = t.permute({ 1, 2, 0 }).contiguous();
-	t = (t + 1) / 2. * 255;
-	t = t.to(torch::kU8);
-	cv::Mat mat = cv::Mat(128, 128, CV_8UC3, t.data_ptr());
-	cv::imwrite("./test_2.png", mat);
-}
-
-class A {
-public:
-    virtual void say() = 0;
-};
-
-
-class B: public A {
-public:
-    void say();
-};
-
-void B::say() {
-    std::cout << "B" << std::endl;
-}
-
-void test_object_slicing() {
-    std::shared_ptr<A> a = std::make_shared<B>(B());
-    a ->say();
-}
 
 auto main(int argc, char** argv) -> int {
 	
@@ -156,11 +86,13 @@ auto main(int argc, char** argv) -> int {
 	int emb_dim = 64;								// base channels dim
 	int T = 1000;									// sampler steps
 	auto device = torch::Device(torch::kCUDA, 0);	// indicate training/testing on which device
+    int stride = 8;                                 // Sample steps = T // stride. E.g, 1000 / 50 = 20
 	/*-------------------------------------------*/
 	
 	/*------------define train/test params--------*/
 	std::string mode("train");
 	std::string exp_name;
+    std::string sampler_type = "ddpm";
 	std::string dataset_path(R"(D:\datasets\thirds\anime_face)");
 	std::string pretrained_weights;
 	std::string weight_path(R"(D:\projects\personal\ddpm\demo.pth)");
@@ -183,6 +115,8 @@ auto main(int argc, char** argv) -> int {
 	app.add_option("--name", exp_name, "experiment name");
 	app.add_option("-p,--pretrained_weights", pretrained_weights, "pretrained model path");
 	app.add_option("-w,--weight_path", weight_path, "weight_path for inference");
+	app.add_option("-t,--type", sampler_type, "sampler type [ddpm/ddim], Default, ddim");
+	app.add_option("-s,--stride", stride, "sampler type [ddpm/ddim], Default, ddim");
 	CLI11_PARSE(app, argc, argv);
 	
 
@@ -191,18 +125,28 @@ auto main(int argc, char** argv) -> int {
             .img_width(img_width)
             .img_height(img_height)
             .T(T)
-            .embedding_size(emb_dim);
-	auto diffusion = DDPM(model.ptr(),sampler_options);
+            .embedding_size(emb_dim)
+            .stride(stride);
+
+    std::cout << "Sampler type: " << sampler_type << std::endl;
+    std::shared_ptr<Sampler> diffusion{nullptr};
+    if (toLowerCase(sampler_type) == "ddim") {
+        diffusion = std::dynamic_pointer_cast<Sampler>(DDIM(model.ptr(),sampler_options).ptr());
+    } else if (toLowerCase(sampler_type) == "ddpm") {
+        diffusion = std::dynamic_pointer_cast<Sampler>(DDPM(model.ptr(),sampler_options).ptr());
+    } else {
+        throw std::invalid_argument("Unsupported sampler type");
+    }
 
 	if (mode == "test") {
 		std::cout << "Running at inference mode..." << std::endl;
 		try {
 			// load pytorch trained model.
 			if (endswith(weight_path, "pth")) {
-				load_state_dict(diffusion.ptr(), weight_path);
+				load_state_dict(model.ptr(), weight_path);
 			}
 			else {
-				torch::load(diffusion, weight_path);
+				torch::load(model, weight_path);
 			}
 			std::cout << "Load weight successful!" << std::endl;
 			
@@ -227,15 +171,15 @@ auto main(int argc, char** argv) -> int {
 
             if (!pretrained_weights.empty()) {
                 if (endswith(pretrained_weights, "pth")) {
-                    load_state_dict(diffusion.ptr(), pretrained_weights);
+                    load_state_dict(model.ptr(), pretrained_weights);
                 }
                 else {
-                    torch::load(diffusion, pretrained_weights);
+                    torch::load(model, pretrained_weights);
                 }
                 std::cout << "Load pretrained weight " << pretrained_weights << " successful!" << std::endl;
             }
             diffusion->to(device);
-            auto trainer = Trainer(std::dynamic_pointer_cast<Sampler>(diffusion.ptr()),
+            auto trainer = Trainer(diffusion,
                     /*img_size=*/img_size,
                     /*exp_name=*/exp_name,
                     /*train_batch_size=*/batch_size,
@@ -249,6 +193,7 @@ auto main(int argc, char** argv) -> int {
             trainer.train(dataset_path);
         } catch (std::exception &e) {
             std::cout << e.what() << std::endl;
+            return -1;
         }
 
 	}

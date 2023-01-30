@@ -83,7 +83,7 @@ void Trainer::train(std::string dataset_path) {
                 auto exp_img_path = (std::stringstream() << sample_path << "/ddpm_ckpt_" << epoch << "_" << step
                                                          << "_ema.png").str();
                 sampler_shadow->sample(exp_img_path, 4);
-                torch::save(sampler_shadow,
+                torch::save(sampler_shadow->get_model(),
                             (std::stringstream() << checkpoint_path << "/ddpm_ckpt_" << epoch << "_" << step
                                                  << ".pt").str());
             }

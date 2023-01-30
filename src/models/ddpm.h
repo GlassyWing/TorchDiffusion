@@ -1,3 +1,4 @@
+#pragma once
 #include <iostream>
 #include <torch/torch.h>
 
@@ -9,6 +10,8 @@ struct SamplerOptions {
     TORCH_ARG(int, img_width);
     TORCH_ARG(int, T) = 1000;
     TORCH_ARG(int, embedding_size) = 2;
+    TORCH_ARG(int, stride) = 2;
+    TORCH_ARG(float, eta) = 1.0;
 };
 
 class Sampler : public torch::nn::Module {
@@ -30,13 +33,16 @@ public:
     virtual torch::Tensor sample(torch::Device device = torch::Device(torch::kCUDA, 0)) = 0;
 
     virtual std::shared_ptr<Sampler> copy() = 0;
+
+    virtual std::shared_ptr<Module> get_model() = 0;
 };
 
 class DDPMImpl : public Sampler {
 private:
-    std::tuple<int, int> img_size;
 
     std::shared_ptr<Module> model{nullptr};
+protected:
+    std::tuple<int, int> img_size;
 public:
     SamplerOptions options;
     int T;
@@ -65,7 +71,7 @@ public:
 
     torch::Tensor sample(torch::Device device = torch::Device(torch::kCUDA, 0)) override;
 
-    std::shared_ptr<Module> get_model();
+    std::shared_ptr<Module> get_model() override;
 
     std::shared_ptr<Sampler> copy() override;
 
