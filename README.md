@@ -37,7 +37,7 @@ The runnable program will be build, the location depends on your OS, with window
 ### Train
 
 ```
-./diffusion --dataset <dataset_dir>
+./diffusion --dataset <dataset_dir> -t ddim -s 4
 ```
 
 The default will create one `experiments` folder used to save the checkpoints and log images.
@@ -49,7 +49,7 @@ see more with `./diffusion -h`
 To generate one 4x4 demo image by this way:
 
 ```
-./diffusion --mode test --weight_path <path/to/weight_path>
+./diffusion --mode test --weight_path <path/to/weight_path> -t ddim -s 8
 ```
 
 ## Generate Example
