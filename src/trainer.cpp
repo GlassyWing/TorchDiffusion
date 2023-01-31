@@ -5,6 +5,7 @@
 #include "datasets/folder.h"
 #include <random>
 #include <utility>
+#include <ATen/autocast_mode.h>
 
 Trainer::Trainer(std::shared_ptr<Sampler> sampler,
                  const std::tuple<int, int>& img_size,
@@ -15,17 +16,19 @@ Trainer::Trainer(std::shared_ptr<Sampler> sampler,
                  double ema_decay,
                  int num_workers,
                  int save_and_sample_every,
-                 int accumulation_steps) {
+                 int accumulation_steps,
+                 bool amp_enable) {
 
     this->sampler = std::move(sampler);
     this->img_size = img_size;
     this->train_batch_size = train_batch_size;
-    this->train_lr = train_lr * accumulation_steps; // auto scale lr by accumulation_steps
+    this->train_lr = train_lr / accumulation_steps; // auto scale lr by accumulation_steps
     this->train_num_epochs = train_num_epochs;
     this->ema_decay = ema_decay;
     this->num_workers = num_workers;
     this->save_and_sample_every = save_and_sample_every;
     this->accumulation_steps = accumulation_steps;
+    this->amp_enable = amp_enable;
 
     sample_path = std::string("experiments").append({file_sepator()}).append(exp_name).append({file_sepator()}).append(
             "outputs");
@@ -91,6 +94,9 @@ void Trainer::train(std::string dataset_path) {
 
             auto data = batch.data.to(device);
 
+            if (amp_enable) {
+                at::autocast::set_enabled(true);
+            }
             torch::Tensor noise_images;
             torch::Tensor steps;
             torch::Tensor noise;
@@ -98,7 +104,11 @@ void Trainer::train(std::string dataset_path) {
 
             auto denoise = sampler->forward(noise_images, steps);
             auto loss = torch::sum((denoise - noise).pow(2), {1, 2, 3}, true).mean();
-            loss = loss / accumulation_steps;
+
+            if (amp_enable) {
+                at::autocast::clear_cache();
+                at::autocast::set_enabled(false);
+            }
 
             loss.backward();
 

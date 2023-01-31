@@ -14,7 +14,8 @@ public:
             double ema_decay = 0.995,
             int num_workers = 2,
             int save_and_sample_every = 100,
-            int accumulation_steps = 2);
+            int accumulation_steps = 2,
+            bool amp_enable = false);
 
     void train(std::string dataset_path);
 
@@ -29,6 +30,7 @@ private:
     int num_workers;
     int save_and_sample_every;
     int accumulation_steps;
+    bool amp_enable;
     std::string sample_path;
     std::string checkpoint_path;
     torch::Device device = torch::Device(torch::kCPU);

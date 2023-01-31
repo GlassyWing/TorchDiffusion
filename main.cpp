@@ -87,6 +87,7 @@ auto main(int argc, char** argv) -> int {
 	int T = 1000;									// sampler steps
 	auto device = torch::Device(torch::kCUDA, 0);	// indicate training/testing on which device
     int stride = 8;                                 // Sample steps = T // stride. E.g, 1000 / 50 = 20
+    int attn_resolution = 16;
 	/*-------------------------------------------*/
 	
 	/*------------define train/test params--------*/
@@ -102,7 +103,8 @@ auto main(int argc, char** argv) -> int {
 	double ema_decay = 0.995;
 	int num_workers = 4;
 	int save_and_sample_every = 500;
-	int accumulation_steps = 2;
+	int accumulation_steps = 4;
+    bool amp_enable = false;
 	/*--------------------------------------------*/
 
 	CLI::App app{ "TorchLib Diffusion model implementation" };
@@ -116,11 +118,16 @@ auto main(int argc, char** argv) -> int {
 	app.add_option("-p,--pretrained_weights", pretrained_weights, "pretrained model path");
 	app.add_option("-w,--weight_path", weight_path, "weight_path for inference");
 	app.add_option("-t,--type", sampler_type, "sampler type [ddpm/ddim], Default, ddim");
-	app.add_option("-s,--stride", stride, "sampler type [ddpm/ddim], Default, ddim");
+	app.add_option("-s,--stride", stride, "sample stride for ddim");
+	app.add_option("--amp,--amp_enable", amp_enable, "whether enable amp autocast, Default, false.");
 	CLI11_PARSE(app, argc, argv);
-	
 
-	auto model = Unet(3, img_size, scales, emb_dim);
+    auto unet_options = UnetOptions(img_height, img_width, scales)
+            .emb_dim(emb_dim)
+            .attn_resolution(attn_resolution)
+            .img_c(3);
+	auto model = Unet(unet_options);
+
     auto sampler_options = SamplerOptions()
             .img_width(img_width)
             .img_height(img_height)
@@ -140,62 +147,51 @@ auto main(int argc, char** argv) -> int {
 
 	if (mode == "test") {
 		std::cout << "Running at inference mode..." << std::endl;
-		try {
-			// load pytorch trained model.
-			if (endswith(weight_path, "pth")) {
-				load_state_dict(model.ptr(), weight_path);
-			}
-			else {
-				torch::load(model, weight_path);
-			}
-			std::cout << "Load weight successful!" << std::endl;
-			
-			diffusion->to(device);
-			diffusion->eval();
+        // load pytorch trained model.
+        if (endswith(weight_path, "pth")) {
+            load_state_dict(model.ptr(), weight_path);
+        }
+        else {
+            torch::load(model, weight_path);
+        }
+        std::cout << "Load weight successful!" << std::endl;
 
-			int64 start = cv::getTickCount();
-			auto x_samples = diffusion->sample("./demo.png", device);
-			double duration = (cv::getTickCount() - start) / cv::getTickFrequency();
-			std::cout << duration / T << " s per prediction" << std::endl;
-		}
-		catch (const std::exception& e) {
-			std::cout << e.what() << std::endl;
-			return -1;
-		}
+        diffusion->to(device);
+        diffusion->eval();
+
+        int64 start = cv::getTickCount();
+        auto x_samples = diffusion->sample("./demo.png", device);
+        double duration = (cv::getTickCount() - start) / cv::getTickFrequency();
+        std::cout << duration / T << " s per prediction" << std::endl;
 	}
 	else {
-        try {
-            std::cout << "Running at training mode..." << std::endl;
-            std::cout << "Experiments name: " << (exp_name.empty() ? "(Empty)" : exp_name) << std::endl;
-            diffusion->apply(weights_norm_init());
+        std::cout << "Running at training mode..." << std::endl;
+        std::cout << "Experiments name: " << (exp_name.empty() ? "(Empty)" : exp_name) << std::endl;
+        diffusion->apply(weights_norm_init());
 
-            if (!pretrained_weights.empty()) {
-                if (endswith(pretrained_weights, "pth")) {
-                    load_state_dict(model.ptr(), pretrained_weights);
-                }
-                else {
-                    torch::load(model, pretrained_weights);
-                }
-                std::cout << "Load pretrained weight " << pretrained_weights << " successful!" << std::endl;
+        if (!pretrained_weights.empty()) {
+            if (endswith(pretrained_weights, "pth")) {
+                load_state_dict(model.ptr(), pretrained_weights);
             }
-            diffusion->to(device);
-            auto trainer = Trainer(diffusion,
-                    /*img_size=*/img_size,
-                    /*exp_name=*/exp_name,
-                    /*train_batch_size=*/batch_size,
-                    /*train_lr=*/learning_rate,
-                    /*train_num_epochs=*/num_epochs,
-                    /*ema_decay=*/ema_decay,
-                    /*num_workers=*/num_workers,
-                    /*save_and_sample_every=*/save_and_sample_every,
-                    /*accumulation_steps=*/accumulation_steps
-            );
-            trainer.train(dataset_path);
-        } catch (std::exception &e) {
-            std::cout << e.what() << std::endl;
-            return -1;
+            else {
+                torch::load(model, pretrained_weights);
+            }
+            std::cout << "Load pretrained weight " << pretrained_weights << " successful!" << std::endl;
         }
-
+        diffusion->to(device);
+        auto trainer = Trainer(diffusion,
+                /*img_size=*/img_size,
+                /*exp_name=*/exp_name,
+                /*train_batch_size=*/batch_size,
+                /*train_lr=*/learning_rate,
+                /*train_num_epochs=*/num_epochs,
+                /*ema_decay=*/ema_decay,
+                /*num_workers=*/num_workers,
+                /*save_and_sample_every=*/save_and_sample_every,
+                /*accumulation_steps=*/accumulation_steps,
+                /*amp_enable=*/amp_enable
+        );
+        trainer.train(dataset_path);
 	}
 	
 	return 0;

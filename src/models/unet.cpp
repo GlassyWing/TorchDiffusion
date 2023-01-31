@@ -118,7 +118,8 @@ void UnetImpl::init(int img_c,
                     int emb_dim,
                     int min_pixel,
                     int n_block,
-                    int n_groups) {
+                    int n_groups,
+                    int attn_resolution) {
     this->img_c = img_c;
     this->n_groups = n_groups;
     this->n_block = n_block;
@@ -151,7 +152,7 @@ void UnetImpl::init(int img_c,
             enc_blocks.insert((std::stringstream() << "enc_block_" << i * n_block + j).str(), block.ptr());
         }
 
-        if (min_img_size <= 16) {
+        if (min_img_size <= attn_resolution) {
             enc_blocks.insert((std::stringstream() << "attn_enc_block_" << i * n_block).str(),
                               AttentionBlock(cur_c, 8, cur_c / 8).ptr());
         }
@@ -192,7 +193,7 @@ void UnetImpl::init(int img_c,
             cur_c = out_channels;
         }
 
-        if (min_img_size <= 16) {
+        if (min_img_size <= attn_resolution) {
             dec_blocks.insert((std::stringstream() << "attn_dec_block_" << m * n_block).str(),
                               AttentionBlock(cur_c, 8, cur_c / 8).ptr());
         }
@@ -215,14 +216,16 @@ void UnetImpl::init(int img_c,
     decoder_blocks = register_module("decoder_blocks", decoder_blocks);
 }
 
-UnetImpl::UnetImpl(int img_c, std::tuple<int, int> &img_size, std::vector<int> &scales, int emb_dim, int min_pixel,
-                   int n_block, int n_groups) {
-    init(img_c, img_size, scales, emb_dim, min_pixel, n_block, n_groups);
+UnetImpl::UnetImpl(UnetOptions& options): options(options) {
+    auto img_size_ = std::make_tuple(options.img_height(), options.img_width());
+    init(options.img_c(),
+         img_size_,
+         options.scales(),
+         options.emb_dim(),
+         options.min_pixel(), options.n_block(), options.n_groups(), options.attn_resolution());
 }
 
-UnetImpl::UnetImpl(UnetImpl &other) {
-    init(other.img_c, other.img_size, other.scales, other.emb_dim, other.min_pixel, other.n_block, other.n_groups);
-}
+UnetImpl::UnetImpl(UnetImpl &other):UnetImpl(other.options) {}
 
 torch::Tensor UnetImpl::forward(torch::Tensor x, const torch::Tensor &t) {
     x = stem(x);
@@ -315,7 +318,7 @@ AttentionBlockImpl::AttentionBlockImpl(int channels, int num_heads, int num_head
         this->num_heads = channels / num_head_channels;
     }
     this->use_checkpoint = use_checkpoint;
-    this->norm = GroupNormCustom(32, channels);
+    this->norm = GroupNormCustom(std::min(32, channels / 4), channels);
     this->qkv = torch::nn::Conv1d(torch::nn::Conv1dOptions(channels, channels * 3, 1));
     this->attention = QKVAttention(num_heads);
     this->proj_out = torch::nn::Conv1d(torch::nn::Conv1dOptions(channels, channels, 1));

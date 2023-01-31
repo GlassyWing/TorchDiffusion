@@ -1,4 +1,5 @@
 #pragma once
+
 #include <torch/torch.h>
 
 #include <utility>
@@ -50,31 +51,48 @@ private:
 
 TORCH_MODULE(ResidualBlock);
 
+struct UnetOptions {
+
+    UnetOptions(int img_height, int img_width, std::vector<int> &scales) :
+            scales_(scales), img_height_(img_height), img_width_(img_width) {};
+
+TORCH_ARG(int, img_c) = 3;
+TORCH_ARG(int, img_height);
+TORCH_ARG(int, img_width);
+TORCH_ARG(int, emb_dim) = 64;
+TORCH_ARG(int, min_pixel) = 4;
+TORCH_ARG(int, n_block) = 2;
+TORCH_ARG(int, n_groups) = 32;
+TORCH_ARG(int, attn_resolution) = 16;
+TORCH_ARG(std::vector<int>, scales);
+};
+
 class UnetImpl : public torch::nn::Module {
 public:
-    UnetImpl(int img_c, std::tuple<int, int> &img_size, std::vector<int> &scales, int emb_dim, int min_pixel = 4,
-             int n_block = 2, int n_groups = 32);
+    UnetImpl(UnetOptions &options);
 
     UnetImpl(UnetImpl &other);
 
     torch::Tensor forward(torch::Tensor x, const torch::Tensor &t);
 
 private:
+    UnetOptions options;
     int n_block;    // each block contains `n_block * (ResdualBlock)`
     int img_c;
     std::vector<int> scales; // save channel dim for each block.
     std::tuple<int, int> img_size;    // model input size.
     int n_groups;    // global GroupNorm param.
     int min_img_size; // min img_size
-    int emb_dim;
-    int min_pixel;
+    int emb_dim;         // base model capacity setting, scales base on it.
+    int min_pixel;       // the minimum resolution allow using downsampling
+    int attn_resolution; // when resolution less than `attn_resolution` apply attention mechanism.
 
     torch::nn::Conv2d stem{nullptr};    // init feature extractor.
     torch::nn::ModuleDict encoder_blocks{nullptr};
     torch::nn::ModuleDict decoder_blocks{nullptr};
 
     void init(int img_c, std::tuple<int, int> &img_size, std::vector<int> &scales, int emb_dim, int min_pixel = 4,
-              int n_block = 2, int n_groups = 32);
+              int n_block = 2, int n_groups = 32, int attn_resolution = 16);
 };
 
 TORCH_MODULE(Unet);
