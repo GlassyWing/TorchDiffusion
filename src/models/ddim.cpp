@@ -1,3 +1,4 @@
+#include <ATen/autocast_mode.h>
 #include "ddim.h"
 
 using namespace torch::indexing;
@@ -56,6 +57,7 @@ DDIMImpl::sample(const std::shared_ptr<std::string>& path, int n, const std::sha
         z = z_samples->clone();
     }
 
+    at::autocast::set_enabled(true);
     for (int i = t0; i < T_; i++) {
         auto t = T_ - i - 1;
         auto bt = torch::tensor({t * stride}, torch::TensorOptions().device(device)).repeat(z.size(0));
@@ -65,6 +67,8 @@ DDIMImpl::sample(const std::shared_ptr<std::string>& path, int n, const std::sha
 
         std::printf("\rSample [%1d / %5zd] ", i, T_);
     }
+    at::autocast::clear_cache();
+    at::autocast::set_enabled(false);
 
     auto x_samples = torch::clip(z, -1, 1); // (n * n, 3, h, w)
     auto result = x_samples.clone();
