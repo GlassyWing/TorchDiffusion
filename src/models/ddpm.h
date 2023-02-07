@@ -35,6 +35,8 @@ public:
     virtual std::shared_ptr<Sampler> copy() = 0;
 
     virtual std::shared_ptr<Module> get_model() = 0;
+
+    virtual std::string name() = 0;
 };
 
 class DDPMImpl : public Sampler {
@@ -76,6 +78,10 @@ public:
     std::shared_ptr<Sampler> copy() override;
 
     static void save_fig(const torch::Tensor &x_samples, std::string &path, int n, int img_height, int img_width);
+
+    std::string name() override {
+        return "DDPM";
+    }
 };
 
 TORCH_MODULE(DDPM);

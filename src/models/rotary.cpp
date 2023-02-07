@@ -11,7 +11,8 @@ torch::Tensor positional_encoding_1d(int d_model, int length, float base) {
                                 << ")").str().c_str());
 
     auto pe = torch::zeros({length, d_model});
-    auto position = torch::arange(0, length, torch::TensorOptions().dtype(torch::kFloat)).unsqueeze(1);
+    auto position = torch::linspace(0, 999, length, torch::TensorOptions().dtype(torch::kFloat)).unsqueeze(1);
+
     auto div_term = torch::exp(
             torch::arange(0, d_model, 2, torch::TensorOptions().dtype(torch::kFloat)) * -(std::log(base) / d_model));
 
@@ -35,7 +36,7 @@ std::vector<torch::Tensor> apply_rotary_position_embeddings(const torch::Tensor 
     sin_pos = sin_pos.expand_as(tensors.at(0));
 
     std::vector<torch::Tensor> outputs;
-    for (auto t: tensors) {
+    for (const auto& t: tensors) {
         auto t_r = torch::empty_like(t);
         t_r.index_put_({"...", Slice(0, None, 2)}, -t.index({"...", Slice(1, None, 2)}));
         t_r.index_put_({"...", Slice(1, None, 2)}, t.index({"...", Slice(0, None, 2)}));

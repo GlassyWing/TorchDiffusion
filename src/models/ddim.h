@@ -20,6 +20,10 @@ public:
 
     std::shared_ptr<Sampler> copy();
 
+    std::string name() override {
+        return "DDIM";
+    }
+
 public:
     torch::Tensor bar_alpha_;
     torch::Tensor bar_alpha_pre_;

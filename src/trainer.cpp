@@ -74,8 +74,10 @@ void Trainer::train(std::string dataset_path) {
     );
 
     torch::optim::AdamW optimizer(sampler->parameters(), train_lr);
+    auto scheduler = torch::optim::StepLR(optimizer, 3, 0.999);
 
-    long step = 0;
+    long step;
+    step = 0;
     for (size_t epoch = 1; epoch <= train_num_epochs; ++epoch) {
 
         size_t batch_idx = 0;
@@ -83,11 +85,14 @@ void Trainer::train(std::string dataset_path) {
         for (auto &batch: *train_loader) {
 
             if (step % save_and_sample_every == 0) {
-                auto exp_img_path = (std::stringstream() << sample_path << "/ddpm_ckpt_" << epoch << "_" << step
+                auto exp_img_ema_path = (std::stringstream() << sample_path << "/" << sampler->name() << "_ckpt_" << epoch << "_" << step
                                                          << "_ema.png").str();
-                sampler_shadow->sample(exp_img_path, 4);
+                auto exp_img_path = (std::stringstream() << sample_path << "/" << sampler->name() << "_ckpt_" << epoch << "_" << step
+                                                         << ".png").str();
+                sampler_shadow->sample(exp_img_ema_path, 4);
+                sampler->sample(exp_img_path, 4);
                 torch::save(sampler_shadow->get_model(),
-                            (std::stringstream() << checkpoint_path << "/ddpm_ckpt_" << epoch << "_" << step
+                            (std::stringstream() << checkpoint_path << "/" << sampler->name() << "_ckpt_" << epoch << "_" << step
                                                  << ".pt").str());
             }
 
@@ -128,5 +133,7 @@ void Trainer::train(std::string dataset_path) {
             step += 1;
             batch_idx += 1;
         }
+
+        scheduler.step();
     }
 }
