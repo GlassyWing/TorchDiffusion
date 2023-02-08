@@ -4,6 +4,12 @@ One Diffusion model implementation base on LibTorch, The LibTorch version is alm
 implementation
 [https://github.com/GlassyWing/sampler](https://github.com/GlassyWing/sampler)
 
+## Supported Sampler
+
+- [x] DDPM
+- [x] DDIM
+- [x] RectifiedFlow
+
 ## Install
 
 on linux
@@ -34,6 +40,8 @@ cmake --build . --config Release
 ```
 
 The runnable program will be build, the location depends on your OS, with windows, it's `build/Release/diffusion.exe`.
+
+
 
 ## Usage
 
