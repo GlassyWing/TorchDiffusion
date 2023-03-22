@@ -2,7 +2,7 @@
 
 One Diffusion model implementation base on LibTorch, The LibTorch version is almost transfer from my pytorch
 implementation
-[https://github.com/GlassyWing/sampler](https://github.com/GlassyWing/sampler)
+[https://github.com/GlassyWing/ddpm](https://github.com/GlassyWing/ddpm)
 
 ## Supported Sampler
 
