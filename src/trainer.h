@@ -17,7 +17,7 @@ public:
             int accumulation_steps = 2,
             bool amp_enable = false);
 
-    void train(std::string dataset_path);
+    void train(std::string dataset_path, std::string image_type="jpg");
 
 private:
     std::shared_ptr<Sampler> sampler{nullptr};

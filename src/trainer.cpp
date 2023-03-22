@@ -3,6 +3,7 @@
 #include "utils/readfile.h"
 #include "utils/path.h"
 #include "datasets/folder.h"
+#include "utils/model_serialize.h"
 #include <random>
 #include <utility>
 #include <ATen/autocast_mode.h>
@@ -51,8 +52,8 @@ Trainer::Trainer(std::shared_ptr<Sampler> sampler,
 
 }
 
-void Trainer::train(std::string dataset_path) {
-    auto dataset = ImageFolderDataset(std::move(dataset_path), img_size)
+void Trainer::train(std::string dataset_path, std::string image_type) {
+    auto dataset = ImageFolderDataset(std::move(dataset_path), img_size, std::move(image_type))
             // RandomFliplr
             .map(torch::data::transforms::Lambda<torch::data::TensorExample>([](torch::data::TensorExample input) {
                 if ((torch::rand(1).item<double>() < 0.5)) {
@@ -91,9 +92,11 @@ void Trainer::train(std::string dataset_path) {
                                                          << ".png").str();
                 sampler_shadow->sample(exp_img_ema_path, 4);
                 sampler->sample(exp_img_path, 4);
-                torch::save(sampler_shadow->get_model(),
-                            (std::stringstream() << checkpoint_path << "/" << sampler->name() << "_ckpt_" << epoch << "_" << step
-                                                 << ".pt").str());
+                auto export_path = (std::stringstream() << checkpoint_path << "/" << sampler->name() << "_ckpt_" << epoch << "_" << step
+                                                        << ".pt").str();
+                auto export_py_path = export_path + "h";
+//                torch::save(sampler_shadow->get_model(), export_path);
+                save_state_dict(sampler_shadow->get_model(), export_py_path);
             }
 
 

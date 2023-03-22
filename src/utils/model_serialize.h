@@ -2,6 +2,10 @@
 
 #include <torch/torch.h>
 
-std::vector<char> get_the_bytes(std::string filename);
+std::vector<char> get_the_bytes(const std::string& filename);
 
-void load_state_dict(std::shared_ptr<torch::nn::Module> model, std::string pt_pth);
+void write_bytes(std::vector<char> bytes, const std::string& filename);
+
+void load_state_dict(const std::shared_ptr<torch::nn::Module>& model, const std::string& pt_pth);
+
+void save_state_dict(const std::shared_ptr<torch::nn::Module>& model, const std::string& pt_pth);

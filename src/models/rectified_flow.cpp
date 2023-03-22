@@ -15,17 +15,10 @@ RectifiedFlowImpl::RectifiedFlowImpl(const std::shared_ptr<Module> &model, Sampl
 
 std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> RectifiedFlowImpl::p_x(const torch::Tensor &x) {
 
-    torch::Tensor z0;
+    // There z0 be gauss, but any other should be ok.
+    auto z0 = torch::randn_like(x);
     torch::Tensor z1;
-    if (last_flow == nullptr) {
-        // There z0 be gauss, but any other should be ok.
-        z0 = torch::randn_like(x);
-        z1 = x;
-    } else {
-        z0 = x;
-        z1 = last_flow->sample_ode(z0, options.T());
-    }
-
+    z1 = x;
 
     auto ti = torch::rand({z0.size(0), 1, 1, 1}, x.options());
     auto z_t = ti * z1 + (1. - ti) * z0;

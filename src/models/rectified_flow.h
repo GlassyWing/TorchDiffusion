@@ -18,6 +18,9 @@ private:
      */
     torch::Tensor t(const torch::Tensor& ti);
 
+    std::vector<torch::Tensor> p0;
+    std::vector<torch::Tensor> p1;
+
 public:
 
     RectifiedFlowImpl(const std::shared_ptr<Module> &model,

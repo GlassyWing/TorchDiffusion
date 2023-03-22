@@ -98,6 +98,7 @@ auto main(int argc, char **argv) -> int {
     std::string exp_name;
     std::string sampler_type = "ddpm";
     std::string dataset_path(R"(D:\datasets\thirds\anime_face)");
+    std::string image_suffix("jpg");
     std::string pretrained_weights;
     std::string weight_path;
     int batch_size = 32;
@@ -127,6 +128,7 @@ auto main(int argc, char **argv) -> int {
     app.add_option("--accum,--accumulation", accumulation_steps, "accumulation steps, Default, 1.");
     app.add_option("-r,--rectify", rectify, "when using `rflow` sampler, indicate whether to rectify. Default, false");
     app.add_option("-n,--num_steps", T, "sample times. Default, 1000");
+    app.add_option("-x,--suffix", image_suffix, "image suffix, Default, jpg");
     CLI11_PARSE(app, argc, argv);
 
     auto unet_options = UnetOptions(img_height, img_width, scales)
@@ -168,7 +170,7 @@ auto main(int argc, char **argv) -> int {
         if (rectify) {
             diffusion = std::dynamic_pointer_cast<Sampler>(RectifiedFlow(model.ptr(), sampler_options,
                                                                          std::dynamic_pointer_cast<RectifiedFlowImpl>(
-                                                                                 diffusion->copy())).ptr());
+                                                                                 diffusion)).ptr());
         }
     } else {
         throw std::invalid_argument("Unsupported sampler type");
@@ -210,7 +212,7 @@ auto main(int argc, char **argv) -> int {
                     /*accumulation_steps=*/accumulation_steps,
                     /*amp_enable=*/amp_enable
             );
-            trainer.train(dataset_path);
+            trainer.train(dataset_path, image_suffix);
         } catch (std::exception &e) {
             std::cout << e.what() << std::endl;
             return -1;
